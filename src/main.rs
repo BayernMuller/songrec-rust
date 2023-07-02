@@ -16,26 +16,16 @@ mod core {
     pub mod thread_messages;
 }
 
-#[cfg(feature = "gui")]
-mod gui {
-    pub mod main_window;
-    mod song_history_interface;
-    mod preferences;
-}
-
 mod cli {
     pub mod cli_main;
 }
 
 mod utils {
-    #[cfg(feature = "gui")]
-    pub mod pulseaudio_loopback;
     pub mod ffmpeg_wrapper;
     pub mod csv_song_history;
     pub mod internationalization;
     pub mod mpris_player;
     pub mod thread;
-    pub mod filesystem_operations;
 }
 
 use crate::fingerprinting::algorithm::SignatureGenerator;
@@ -43,8 +33,6 @@ use crate::fingerprinting::signature_format::DecodedSignature;
 use crate::fingerprinting::communication::recognize_song_from_signature;
 
 use crate::utils::internationalization::setup_internationalization;
-#[cfg(feature = "gui")]
-use crate::gui::main_window::gui_main;
 use crate::cli::cli_main::{cli_main, CLIParameters, CLIOutputType};
 
 use std::error::Error;
@@ -169,47 +157,6 @@ macro_rules! base_app {
     };
 }
 
-#[cfg(feature="gui")]
-macro_rules! gui_app {
-    () => {
-        base_app!()
-        .subcommand(
-            App::new("gui")
-                .about(gettext("The default action. Display a GUI.").as_str())
-                .arg(
-                    Arg::with_name("input_file")
-                        .required(false)
-                        .help(gettext("An optional audio file to recognize on the launch of the application.").as_str())
-                )
-                .arg(
-                    Arg::with_name("disable-mpris")
-                        .long("disable-mpris")
-                        .help(gettext("Disable MPRIS support").as_str())
-                )
-        )
-        .subcommand(
-            App::new("gui-norecording")
-                .about(gettext("Launch the GUI, but don't recognize audio through the microphone as soon as it is launched (rather than expecting the user to click on a button).").as_str())
-                .arg(
-                    Arg::with_name("input_file")
-                        .required(false)
-                        .help(gettext("An optional audio file to recognize on the launch of the application.").as_str())
-                )
-                .arg(
-                    Arg::with_name("disable-mpris")
-                        .long("disable-mpris")
-                        .help(gettext("Disable MPRIS support").as_str())
-                )
-        )
-    };
-}
-
-#[cfg(feature="gui")]
-macro_rules! app {
-    () => { gui_app!() };
-}
-
-#[cfg(not(feature="gui"))]
 macro_rules! app {
     () => { base_app!() };
 }
@@ -342,28 +289,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                 output_type: CLIOutputType::JSON
             })?;
         },
-        #[cfg(feature="gui")]
-        Some("gui-norecording") => {
-            let subcommand_args = args.subcommand_matches("gui-norecording").unwrap();
-
-            gui_main(false,
-                 subcommand_args.value_of("input_file"),
-                 !subcommand_args.is_present("disable-mpris"),
-            )?;
-        },
-        #[cfg(feature="gui")]
-        Some("gui") | None => {
-            if let Some(subcommand_args) = args.subcommand_matches("gui") {
-                gui_main(true,
-                     subcommand_args.value_of("input_file"),
-                     !subcommand_args.is_present("disable-mpris"),
-                )?;
-            }
-            else {
-                gui_main(true, None, true)?;
-            }
-        },
-        #[cfg(not(feature="gui"))]
         None => {
             cli_main(CLIParameters {
                 enable_mpris: true,
